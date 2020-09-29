@@ -1,0 +1,514 @@
+<!--
+  Copyright (c) 2006-2013, JGraph Ltd
+  
+  Fixed points example for mxGraph. This example demonstrates using
+  fixed connection points for connecting edges to vertices.
+-->
+<html>
+<head>
+	<title>Fixed points example for mxGraph</title>
+
+	<!-- Sets the basepath for the library if not in same directory -->
+	<script type="text/javascript">
+		mxBasePath = 'https://cdn.jsdelivr.net/npm/mxgraph@4.2.0/javascript/src/';
+	</script>
+
+	<!-- Loads and initializes the library -->
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.0/javascript/mxClient.min.js"></script>
+
+	<!-- Example code -->
+	<script type="text/javascript">
+		var graph;
+	
+		// Program starts here. Creates a sample graph in the
+		// DOM node with the specified ID. This function is invoked
+		// from the onLoad event handler of the document (see below).
+		function main(container)
+		{
+			// Checks if the browser is supported
+			if (!mxClient.isBrowserSupported())
+			{
+				// Displays an error message if the browser is not supported.
+				mxUtils.error('Browser is not supported!', 200, false);
+			}
+			else
+			{
+				// Snaps to fixed points
+				/*mxConstraintHandler.prototype.intersects = function(icon, point, source, existingEdge)
+				{
+					return (!source || existingEdge) || mxUtils.intersects(icon.bounds, point);
+				};*/
+				
+				//Defines the appearance of the anchors
+				mxConstraintHandler.prototype.pointImage = new mxImage("images/handle_constraint.svg", 8,8);
+				
+				// Special case: Snaps source of new connections to fixed points
+				// Without a connect preview in connectionHandler.createEdgeState mouseMove
+				// and getSourcePerimeterPoint should be overriden by setting sourceConstraint
+				// sourceConstraint to null in mouseMove and updating it and returning the
+				// nearest point (cp) in getSourcePerimeterPoint (see below)
+				
+				/*
+				var mxConnectionHandlerUpdateEdgeState = mxConnectionHandler.prototype.updateEdgeState;
+				mxConnectionHandler.prototype.updateEdgeState = function(pt, constraint)
+				{
+					if (pt != null && this.previous != null)
+					{
+				        var constraints = this.graph.getAllConnectionConstraints(this.previous);
+				        var nearestConstraint = null;
+				        var dist = null;
+				   
+				        for (var i = 0; i < constraints.length; i++)
+				        {
+				            var cp = this.graph.getConnectionPoint(this.previous, constraints[i]);
+				           
+				            if (cp != null)
+				            {
+				                var tmp = (cp.x - pt.x) * (cp.x - pt.x) + (cp.y - pt.y) * (cp.y - pt.y);
+				           
+				                if (dist == null || tmp < dist)
+				                {
+				                	nearestConstraint = constraints[i];
+				                    dist = tmp;
+				                }
+				            }
+				        }
+				       
+				        if (nearestConstraint != null)
+				        {
+				        	this.sourceConstraint = nearestConstraint;
+				        }
+				        
+				        // In case the edge style must be changed during the preview:
+				        // this.edgeState.style['edgeStyle'] = 'orthogonalEdgeStyle';
+				        // And to use the new edge style in the new edge inserted into the graph,
+				        // update the cell style as follows:
+				        //this.edgeState.cell.style = mxUtils.setStyle(this.edgeState.cell.style, 'edgeStyle', this.edgeState.style['edgeStyle']);
+					}
+				
+					mxConnectionHandlerUpdateEdgeState.apply(this, arguments);
+				};*/
+
+		
+
+				// Creates the graph inside the given container
+				graph = new mxGraph(container);
+				graph.setConnectable(true);
+				graph.setAutoSizeCells(true);
+				graph.minimumContainerSize = 100;
+				
+				var rubberband = new mxRubberband(graph);
+				var keyHandler = new mxKeyHandler(graph);
+				// Assigns the delete key
+				keyHandler.bindKey(46, function(evt)
+				{
+					if (graph.isEnabled())
+					{
+						graph.removeCells();
+					}
+				});
+				
+				graph.dblClick = function(evt, cell)
+					{
+					  var mxe = new mxEventObject(mxEvent.DOUBLE_CLICK, 'event', evt, 'cell', cell);
+					  this.fireEvent(mxe);
+
+					  if (this.isEnabled() && !mxEvent.isConsumed(evt) && !mxe.isConsumed())
+					  {
+						mxUtils.alert("Open properties and/or content of '" + this.convertValueToString(cell) + "'");
+						mxe.consume();
+					  }
+					}
+				
+				graph.convertValueToString = function(cell)
+				{
+					if(cell.style == 'State')
+						return cell.value.name;
+						
+					return cell.value;
+					
+				};
+				
+				// NEW SHAPE : STATE
+
+				function CustomShape()
+				{
+					mxShape.call(this);
+				};
+				
+				mxUtils.extend(CustomShape, mxShape);
+				CustomShape.prototype.paintForeground = function(c, x, y, w, h)
+				{
+					<!-- c.setFillColor ("silver"); -->
+					<!-- c.roundrect(x+5,y+h-15,10,10,3,3); -->
+					<!-- c.fillAndStroke(); -->
+				}
+				CustomShape.prototype.paintBackground = function(c, x, y, w, h)
+				{
+					var radius = 2;
+				
+					c.setStrokeColor ("#cccccc");
+					c.setFillColor ("white");
+					c.roundrect(x,y,w,h,radius,radius);
+					c.fillAndStroke();
+					
+					c.setStrokeWidth (0);
+					c.setFillColor ("#f0f0f0");
+					c.begin();
+					c.moveTo(x,y+radius);
+					c.quadTo(x,y,x+radius,y);
+					c.lineTo(x+w-radius,y);
+					c.quadTo(x+w,y, x+w,y+radius);
+					c.lineTo(x+w,y+20);
+					c.lineTo(x,y+20);
+					c.lineTo(x,y+radius);
+					c.fillAndStroke();
+					c.setFontColor("#cccccc");
+					c.image(x+2,y+2,16,16, "images/icon_state.svg");
+					c.text(x+2,y+22, w-2,20, "Ref. '" + this.state.cell.value.ref + "'");
+				};
+				mxCellRenderer.registerShape('stateBox', CustomShape);
+
+
+				
+				// NEW SHAPE : FINALSTATE
+
+				function FinalStateShape()
+				{
+					mxShape.call(this);
+				};
+				
+				mxUtils.extend(FinalStateShape, mxShape);
+				FinalStateShape.prototype.paintForeground = function(c, x, y, w, h)
+				{
+					<!-- c.setFillColor ("silver"); -->
+					<!-- c.roundrect(x+5,y+h-15,10,10,3,3); -->
+					<!-- c.fillAndStroke(); -->
+				}
+				FinalStateShape.prototype.paintBackground = function(c, x, y, w, h)
+				{
+					var radius = 2;
+				
+					c.setStrokeColor ("#cccccc");
+					c.setFillColor ("white");
+					c.roundrect(x,y,w,h,radius,radius);
+					c.fillAndStroke();
+					
+					c.setStrokeWidth (0);
+					c.setFillColor ("#f0f0f0");
+					c.begin();
+					c.moveTo(x,y+radius);
+					c.quadTo(x,y,x+radius,y);
+					c.lineTo(x+w-radius,y);
+					c.quadTo(x+w,y, x+w,y+radius);
+					c.lineTo(x+w,y+20);
+					c.lineTo(x,y+20);
+					c.lineTo(x,y+radius);
+					c.fillAndStroke();
+					
+					c.image(x+2,y+2,16,16, "images/icon_finalstate.svg");
+				};
+				mxCellRenderer.registerShape('finalStateBox', FinalStateShape);
+
+
+				// NEW SHAPE : INITIAL STATE
+
+				function CustomInitialShape()
+				{
+					mxShape.call(this);
+				};
+				
+				mxUtils.extend(CustomInitialShape, mxShape);
+				CustomInitialShape.prototype.paintForeground = function(c, x, y, w, h)
+				{
+				}
+				CustomInitialShape.prototype.paintBackground = function(c, x, y, w, h)
+				{
+					var radius = 5;
+					c.setFillColor ("white");
+					c.roundrect(x,y,w,h,radius,radius);
+					c.fillAndStroke();
+					
+					var ellMargin = 9;
+					
+					var s = w;
+					if (w > (h-20)) s = (h-20); // -20 to give space to the label
+					
+					var nx = x + ellMargin;
+					var ny = y + ellMargin;
+
+					nx = nx + (w - s)/2;
+					ny = ny + (h - s -20)/2;
+					
+					s = s- (ellMargin*2);
+					
+					var st = Math.floor(s/6);
+					
+					c.ellipse(nx,ny, s ,s );
+					c.setStrokeWidth (2);
+					c.setFillColor ("#008800");
+					c.fillAndStroke();
+
+					c.begin();
+					c.moveTo(nx + (2*st), ny+ 1*st);
+					c.lineTo(nx+ 5*st,  ny+ 3*st);
+					c.lineTo(nx+ 2*st, ny + 5*st);
+					c.lineTo(nx + 2*st, ny + 1*st);
+					c.close();
+					c.setFillColor ("white");
+					c.setStrokeWidth (0);
+					c.fillAndStroke();
+				
+				};
+				mxCellRenderer.registerShape('initialStateBox', CustomInitialShape);
+
+
+
+				mxVertexHandler.prototype.singleSizer = true;
+				mxVertexHandler.prototype.livePreview = true;
+				mxVertexHandler.prototype.constrainGroupByChildren = true;
+				
+				mxVertexHandler.prototype.manageSizers = true;
+				mxVertexHandler.prototype.horizontalOffset = 30;
+
+				mxConstants.HANDLE_FILLCOLOR = '#cccccc';
+				mxConstants.HANDLE_STROKECOLOR = '#888888';
+				mxConstants.VERTEX_SELECTION_COLOR = '#888888';
+								
+				var style = graph.getStylesheet().getDefaultVertexStyle();				
+				style[mxConstants.STYLE_ROUNDED] = true;
+				style[mxConstants.STYLE_ARCSIZE] = 7;
+				style[mxConstants.STYLE_STROKECOLOR] = '#aaaaaa';
+				style[mxConstants.STYLE_FILLCOLOR] = 'white';
+				style[mxConstants.STYLE_FONTCOLOR] = 'black';
+				style[mxConstants.STYLE_FONTFAMILY] = 'Segoe UI';
+				style[mxConstants.STYLE_FONTSIZE] = '12';
+				graph.getStylesheet().putDefaultVertexStyle(style);
+
+
+				style[mxConstants.STYLE_SHAPE] = 'stateBox'; //mxConstants.SHAPE_LABEL;
+				style[mxConstants.STYLE_ALIGN] = mxConstants.ALIGN_LEFT;
+				style[mxConstants.STYLE_OVERFLOW] = 'hidden';
+				style[mxConstants.STYLE_VERTICAL_ALIGN] = mxConstants.ALIGN_TOP;
+				style[mxConstants.STYLE_IMAGE_VERTICAL_ALIGN] = mxConstants.ALIGN_TOP;
+				style[mxConstants.STYLE_SPACING_LEFT] = '25';
+				style[mxConstants.STYLE_SPACING_TOP] = '5';
+				style[mxConstants.STYLE_SPACING] = '0';
+				
+				graph.getStylesheet().putCellStyle('State', style);
+
+				style = style = mxUtils.clone(style);
+				style[mxConstants.STYLE_SHAPE] = 'finalStateBox';
+				graph.getStylesheet().putCellStyle('FinalState', style);
+
+
+				style = style = mxUtils.clone(style);
+				style[mxConstants.STYLE_SPACING_LEFT] = '5';
+				style[mxConstants.STYLE_SPACING_TOP] = '5';
+				style[mxConstants.STYLE_SPACING_RIGHT] = '5';
+				style[mxConstants.STYLE_SPACING_BOTTOM] = '5';
+				style[mxConstants.STYLE_ALIGN] = mxConstants.ALIGN_CENTER;
+				style[mxConstants.STYLE_VERTICAL_ALIGN] = mxConstants.ALIGN_BOTTOM;
+				style[mxConstants.STYLE_SHAPE] = 'initialStateBox'; 
+				graph.getStylesheet().putCellStyle('InitialState', style);
+
+
+				style = graph.getStylesheet().getDefaultEdgeStyle();
+				style[mxConstants.STYLE_SHAPE] = mxConstants.SHAPE_CONNECTOR;
+				style[mxConstants.STYLE_ORTHOGONAL] = true;
+				style[mxConstants.STYLE_EDGE] = mxEdgeStyle.OrthConnector;//ElbowConnector;
+				style[mxConstants.STYLE_ROUNDED] = true;
+				style[mxConstants.STYLE_STROKECOLOR] = '#aaaaaa';
+				style[mxConstants.STYLE_STROKEWIDTH] = '1.5';
+				style[mxConstants.STYLE_LABEL_BORDERCOLOR] = '#aaaaaa';
+				style[mxConstants.STYLE_LABEL_BACKGROUNDCOLOR] = 'white';
+				style[mxConstants.STYLE_OVERFLOW] = 'hidden';
+				style[mxConstants.STYLE_STARTARROW] = 'oval';
+				style[mxConstants.STYLE_FILLCOLOR] = 'white';
+				style[mxConstants.STYLE_STARTFILL] = true;
+				style[mxConstants.STYLE_ENDARROW] = 'classic';
+				style[mxConstants.STYLE_FONTCOLOR] = 'black';
+				style[mxConstants.STYLE_FONTFAMILY] = 'Segoe UI';
+				style[mxConstants.STYLE_FONTSIZE] = '12';
+				style['jumpStyle'] = 'arc';
+				style['jumpSize'] = 16;
+				graph.getStylesheet().putDefaultEdgeStyle(style);
+				graph.getStylesheet().putCellStyle('Connector', style);
+				
+				style = style = mxUtils.clone(style);
+				style[mxConstants.STYLE_STARTARROW] = 'none';
+				graph.getStylesheet().putCellStyle('InitialConnector', style);
+	    
+
+				//graph.connectionHandler.connectImage = new mxImage('images/connector.gif', 16, 16);
+
+				// Disables floating connections (only use with no connect image)
+				
+					/*graph.connectionHandler.isConnectableCell = function(cell)
+					{
+					   return false;
+					};
+					*/
+					mxEdgeHandler.prototype.isConnectableCell = function(cell)
+					{
+						return graph.connectionHandler.isConnectableCell(cell);
+					};
+				
+				
+				// Truncates the label to the size of the vertex
+				graph.getLabel = function(cell)
+				{
+					var label = (this.labelsVisible) ? this.convertValueToString(cell) : '';
+					var geometry = this.model.getGeometry(cell);
+					
+					if (!this.model.isCollapsed(cell) && geometry != null && (geometry.offset == null ||
+						(geometry.offset.x == 0 && geometry.offset.y == 0)) && this.model.isVertex(cell) &&
+						geometry.width >= 2)
+					{
+						var style = this.getCellStyle(cell);
+						var fontSize = style[mxConstants.STYLE_FONTSIZE] || mxConstants.DEFAULT_FONTSIZE;
+						var max = geometry.width / (fontSize * 0.625);
+						
+						if (max < label.length)
+						{
+							return label.substring(0, max) + '...';
+						}
+					}
+					
+					return label;
+				};
+				
+				graph.getAllConnectionConstraints = function(terminal)
+				{
+					if (terminal != null && this.model.isVertex(terminal.cell))
+					{
+						return [new mxConnectionConstraint(new mxPoint(0.25, 0), true),
+					    	new mxConnectionConstraint(new mxPoint(0.5, 0), true),
+							new mxConnectionConstraint(new mxPoint(0.75, 0), true),
+					    	new mxConnectionConstraint(new mxPoint(1, 0.33), true),
+							new mxConnectionConstraint(new mxPoint(1, 0.66), true),
+							
+							
+							new mxConnectionConstraint(new mxPoint(0.25, 1), true),
+					    	new mxConnectionConstraint(new mxPoint(0.5, 1), true),
+							new mxConnectionConstraint(new mxPoint(0.75, 1), true),
+					    	new mxConnectionConstraint(new mxPoint(0, 0.33), true),
+							new mxConnectionConstraint(new mxPoint(0, 0.66), true)
+					    	];
+					}
+
+					return null;
+				};
+				
+				// Connect preview
+				/*graph.connectionHandler.createEdgeState = function(me) 
+				 { 
+					var edge = graph.createEdge(null, null, null, null, null, 'edgeStyle=orthogonalEdgeStyle'); 
+					
+					 return new mxCellState(this.graph.view, edge, this.graph.getCellStyle(edge)); 
+				 }; */
+
+			
+				// Gets the default parent for inserting new cells. This
+				// is normally the first child of the root (ie. layer 0).
+				var parent = graph.getDefaultParent();
+								
+				// Adds cells to the model in a single step
+				graph.getModel().beginUpdate();
+				try
+				{
+					var vs = graph.insertVertex(parent, null, 'Start', 120, 20, 70, 80, "InitialState");
+					var v1 = graph.insertVertex(parent, null, {name:"State 1", ref:"34323"}, 100, 160, 150, 60, "State");
+					var v2 = graph.insertVertex(parent, null, {name:"State 2", ref:"34322"}, 300, 180, 150, 60, "State");
+					var vf = graph.insertVertex(parent, null, 'Final State', 150, 350, 150, 60, "FinalState");
+					var e1 = graph.insertEdge(parent, null, '', vs, v1,"InitialConnector"); 
+					 var e2 = graph.insertEdge(parent, null, 'T1', v1, v2,"Connector"); 
+					var e3 = graph.insertEdge(parent, null, 'T2', v2, vf,"Connector"); 
+					var e4 = graph.insertEdge(parent, null, 'T3', v1, vf,"Connector"); 
+					
+					
+
+					
+
+				}
+				finally
+				{
+					// Updates the display
+					graph.getModel().endUpdate();
+				}
+				
+				
+				graph.refresh();
+			}
+			
+			// Use this code to snap the source point for new connections without a connect preview,
+			// ie. without an overridden graph.connectionHandler.createEdgeState
+			
+			/*
+			var mxConnectionHandlerMouseMove = mxConnectionHandler.prototype.mouseMove;
+			mxConnectionHandler.prototype.mouseMove = function(sender, me)
+			{
+			    this.sourceConstraint = null;
+			   
+			    mxConnectionHandlerMouseMove.apply(this, arguments);
+			};
+
+			var mxConnectionHandlerGetSourcePerimeterPoint = mxConnectionHandler.prototype.getSourcePerimeterPoint;
+			mxConnectionHandler.prototype.getSourcePerimeterPoint = function(state, pt, me)
+			{
+			    var result = null;
+			   
+			    if (this.previous != null && pt != null)
+			    {
+			        var constraints = this.graph.getAllConnectionConstraints(this.previous);
+			        var nearestConstraint = null;
+			        var nearest = null;
+			        var dist = null;
+			  
+			        for (var i = 0; i < constraints.length; i++)
+			        {
+			            var cp = this.graph.getConnectionPoint(this.previous, constraints[i]);
+			          
+			            if (cp != null)
+			            {
+			                var tmp = (cp.x - pt.x) * (cp.x - pt.x) + (cp.y - pt.y) * (cp.y - pt.y);
+			          
+			                if (dist == null || tmp < dist)
+			                {
+			                    nearestConstraint = constraints[i];
+			                    nearest = cp;
+			                    dist = tmp;
+			                }
+			            }
+			        }
+			      
+			        if (nearestConstraint != null)
+			        {
+			            this.sourceConstraint = nearestConstraint;
+			            result = nearest;
+			        }
+			    }
+			   
+			    if (result == null)
+			    {
+			        result = mxConnectionHandlerGetSourcePerimeterPoint.apply(this, arguments);
+			    }
+			   
+			    return result;
+			};
+			*/
+		};
+		
+		
+	</script>
+</head>
+
+<!-- Page passes the container for the graph to the program -->
+<body onload="main(document.getElementById('graphContainer'))">
+<button onclick="alert( mxUtils.getXml(new mxCodec().encode(graph.getModel())))">XML</button>
+	<!-- Creates a container for the graph with a grid wallpaper -->
+	<div id="graphContainer"
+		style="overflow:hidden;position:relative;width:100%;height:100%;cursor:default;">
+	</div>
+</body>
+</html>
